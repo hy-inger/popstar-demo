@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" content="target-densitydpi=320,width=640,user-scalable=no" />
+    <noscript><meta http-equiv="refresh" content="0"></noscript>
+    <title></title>
+    <meta name="description" id="seo_description" content="消灭星星">
+    <meta name="viewport" content="initial-scale=1, width=device-width, maximum-scale=1, user-scalable=no">
+    <meta name="viewport" content="initial-scale=1.0,user-scalable=no,maximum-scale=1" media="(device-height: 568px)">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name='apple-touch-fullscreen' content='yes'>
+    <meta name="full-screen" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta name="format-detection" content="telephone=no">
+    <meta name="format-detection" content="address=no">
+    <link rel="icon" href="" type="image/x-icon">
+<script id="jquery_183" type="text/javascript" class="library" src="http://runjs.cn/js/sandbox/jquery/jquery-1.8.3.min.js"></script>
+<style>
+* {margin:0; padding:0;}
+body {background:#000;  width:100%; height:100%;}
+#box {position:absolute; margin-top:50px;}
+#star_box {position:relative; }
+#star_box .star {width:40px; height:40px; position:absolute; cursor:pointer; }
+#star_box .star img {border-radius:5px;}
+#star_box .link img {border:2px solid #fff; border-radius:5px;}
+</style>
+<script>
+$(function(){
+        app.run();
+});
+// 2015-1-30 16:26
+// 基本都已经实现
+// 积分系统还没开始
+var app = {};
+app.linkStars = [];
+app.searchStars = [];
+app.stars = [];
+app.newStars = [];
+app.colsNoneNum = 0;
+app.star = {
+        width:30,  // 星星的宽度
+        height:30, // 高度
+        margin:5, // 每个星星的边距
+        rowNum:10, // 行数
+        colsNum:10, // 列数
+        colorNum:5, // 星星颜色数量  最大值为5  因为我TMD就做了5张星星图片
+};
+app.timer = null;
+app.run = function() {
+        this.box = $('#box');
+        this.starBox = this.box.find('#star_box');
+        this.initCanvas();
+        this.initStars();
+        this.draw();
+        this.initBox();
+        // this.write();
+}
+app.initCanvas = function() {
+        var height = $(window).height();
+        $('body').css('height', height+'px');
+}
+// 初始化box样式
+app.initBox = function() {
+        var boxWidth = this.star.width*this.star.colsNum+this.star.margin*this.star.colsNum;
+        var boxHeight = this.star.height*this.star.rowNum+this.star.margin*this.star.rowNum;
+        var left = ($(window).width() - boxWidth) / 2;
+        this.box.css('left', left+'px');
+        this.box.css('width', boxWidth+'px');
+        this.box.css('height', boxHeight+'px');
+}
+// 初始化星星数组
+app.initStars = function() {
+        for(var i = 0; i < this.star.rowNum; i++) {
+                this.stars[i] = [];
+                for(var k = 0; k < this.star.colsNum; k++) {
+                        var color_index = Math.floor((Math.random()*this.star.colorNum));
+                        this.stars[i][k] = color_index;
+                }
+        }
+        // this.stars = [[0,1,0,1,1],[0,0,0,1,0]];  // bug测试
+        this.newStars = left2Array(this.stars);
+        this.noLeftChangeStars = left2Array(this.stars);
+}
+app.initColsLink = function() {
+        // 当前查找状态，一个数组对象，每个对象代表一列
+        this.colsLink = [];
+        for(var i = 0; i < this.star.colsNum; i++) {
+                this.colsLink[i] = {x:[], num:0, max:Number(-1), count:this.initRowArray(1)};
+        }
+}
+app.click = function(x, y) {
+        x = parseInt(x);
+        y = parseInt(y);
+        var searchStars = [];
+        searchStars[0] = {x:x, y:y};
+        this.count = 0;
+        this.linkStars = [];
+        this.searchStars = [];
+        this.bigSearch(searchStars); // 搜索 连接的星星
+        this.clickAnimate();
+}
+app.mouseup = function() {
+        clearTimeout(app.timer);
+        app.timer = setTimeout(function() {
+                app.starBox.find('.star').removeClass('link');
+        }, 500);
+}
+// 触摸某个星星
+// X坐标 和 Y坐标
+app.touch = function(x, y) {
+        x = parseInt(x);
+        y = parseInt(y);
+        var searchStars = [];
+        searchStars[0] = {x:x, y:y};
+        this.count = 0;
+        this.linkStars = [];
+        this.searchStars = [];
+        this.bigSearch(searchStars); // 搜索 连接的星星
+        this.initColsLink();
+        this.colsNoneLenth = this.initColsArray(0);
+        this.leftData = {min:Number(this.star.colsNum), y:[], num:0, count:this.initColsArray(1)};
+        this.makeStars(); // 重新生成星星数组
+        this.animate();
+        // this.draw(); // 重新绘制星星
+        // this.write(); // debug
+}
+// 星星动画
+app.animate = function() {
+        if(this.linkStars.length < 2) return;
+        for(var i in this.linkStars) {
+                var x = parseInt(this.linkStars[i].x);
+                var y = parseInt(this.linkStars[i].y);
+                app.delAnimate(x, y);
+        }
+        for(var i in this.colsLink) {
+                var x = parseInt(this.colsLink[i].max);
+                var y = parseInt(i);
+                if(this.colsLink[i].x.length > 1) {
+                        var mOffset = 0;
+                        for(var j = this.colsLink[i].x.length-1; j >= 0; j--) {
+                                mOffset += this.colsLink[i].count[j];
+                                var r = this.colsLink[i].x[j-1];
+                                if(j - 1 < 0) r=-1;
+                                for(var t_x = this.colsLink[i].x[j]-1; t_x > r; t_x--) {
+                                        this.downAnimate(t_x, y, mOffset);
+                                }
+                        }
+                }
+                else {
+                        for(var t_x = x-1; t_x >= 0; t_x--) {
+                                this.downAnimate(t_x, y, this.colsLink[y].num);
+                        }
+                }
+        }
+        if(this.leftData.min > -1) {
+                if(this.leftData.y.length > 1) {
+                        var mOffset = 0;
+                        for(var j = 0; j <= this.leftData.y.length-1; j++) {
+                                mOffset += this.leftData.count[j];
+                                var r = this.leftData.y[j+1];
+                                if(j + 1 > this.leftData.y.length-1) r=this.star.colsNum;
+                                for(var n_x = 0; n_x <= this.star.rowNum-1; n_x++) {
+                                        for(var n_y = this.leftData.y[j]+1; n_y < r; n_y++) {
+                                                this.leftAnimate(n_x, n_y, mOffset);
+                                        }
+                                }
+                        }
+                }
+                else {
+                        var y = parseInt(this.leftData.min);
+                        for(var n_x = 0; n_x <= this.star.rowNum-1; n_x++) {
+                                for(var n_y = y+1; n_y < this.star.colsNum; n_y++) {
+                                        this.leftAnimate(n_x, n_y, this.leftData.num);
+                                }
+                        }
+                }
+        }
+        // this.leftAnimate();
+}
+/* 消除星星的动画效果 */
+app.delAnimate = function(x,y) {
+        var index = x*this.star.colsNum + y; // 根据x、y计算对应dom中星星的 id
+        var starDiv = this.starBox.find('.id_'+index);
+        var left = parseInt(starDiv.css('left')) + this.star.width/2
+        var top = parseInt(starDiv.css('top')) + this.star.height/2
+        starDiv.find('img').animate({width:'0',height:'0'}, 500);
+        starDiv.animate({ left:left+'px', top:top+'px', opacity:0}, 500, function(){$(this).hide();});
+        starDiv.removeClass('id_'+index);
+}
+/* 星星向下移动的动画效果 */
+app.downAnimate = function(x, y, move_num) {
+        if(this.checkRepeat(x, y)) {
+                return ;
+        }
+        var index = x*this.star.colsNum + y;
+        var starDiv = this.starBox.find('.id_'+index);
+        var dTop = parseInt(starDiv.css('top'));
+        var top = dTop + (this.star.height + this.star.margin) * move_num;
+        starDiv.animate({top:top+'px'}, 300);
+        var n_x_ = x + move_num;
+        starDiv.attr('ondblclick', 'app.touch('+n_x_+','+y+')');
+        starDiv.attr('onmousedown', 'app.click('+n_x_+','+y+')');
+        starDiv.removeClass('id_'+index);
+        var id = parseInt(n_x_*this.star.colsNum) + parseInt(y);
+        starDiv.addClass('id_'+id);
+}
+/* 星星向左移动的动画效果 */
+app.leftAnimate = function(x, y, move_num) {
+        var index = x*this.star.colsNum + y;
+        var starDiv = this.starBox.find('.id_'+index);
+        var dLeft = parseInt(starDiv.css('left'));
+        var left = dLeft - (this.star.width + this.star.margin) * move_num;
+        starDiv.animate({left:left+'px'}, 300);
+        var n_y_ = y - move_num;
+        starDiv.attr('ondblclick', 'app.touch('+x+','+n_y_+')');
+        starDiv.attr('onmousedown', 'app.click('+x+','+n_y_+')');
+        starDiv.removeClass('id_'+index);
+        var id = parseInt(x*this.star.colsNum) + parseInt(n_y_);
+        starDiv.addClass('id_'+id);
+}
+// 点击提示连接星星动画
+app.clickAnimate = function() {
+        if(this.linkStars.length < 2) return;
+        this.starBox.find('.star').removeClass('link');
+        for(var i in this.linkStars) {
+                var x = parseInt(this.linkStars[i].x);
+                var y = parseInt(this.linkStars[i].y);
+                var index = x*this.star.colsNum + y;
+                var starDiv = this.starBox.find('.id_'+index);
+                starDiv.addClass('link');
+        }
+}
+/* 递归遍历查找 */
+app.bigSearch = function(searchStars) {
+        if(searchStars.length == 0) return ;
+        this.newSearchStars = [];
+        this.s_count = 0;
+        for(var i in searchStars) {
+                var star = searchStars[i];
+                var x = parseInt(star.x);
+                var y = parseInt(star.y);
+                if(!this.checkRepeat(x, y)) {
+                        this.linkStars[this.count] = {x:x, y:y};
+                }
+                this.count++;
+                this.search(x, y, 'top');
+                this.search(x, y, 'right');
+                this.search(x, y, 'down');
+                this.search(x, y, 'left');
+        }
+        this.bigSearch(this.newSearchStars);
+}
+/* 上下左右 查找 */
+app.search = function(x, y, position) {
+        if(position == 'top') {
+                var top = x-1;
+                if(top < 0) return;
+                if(this.stars[x][y] == this.stars[top][y] && !this.checkRepeat(top, y)) {
+                        this.newSearchStars[this.s_count] = {x:top, y:y};
+                }
+        }
+        else if(position == 'right') {
+                var right = y+1;
+                if(right > this.star.colsNum-1) return;
+                if(this.stars[x][y] == this.stars[x][right] && !this.checkRepeat(x, right)) {
+                        this.newSearchStars[this.s_count] = {x:x, y:right};
+                }
+        }
+        else if(position == 'down') {
+                var down = x+1;
+                if(down > this.star.rowNum-1) return;
+                if(this.stars[x][y] == this.stars[down][y] && !this.checkRepeat(down, y)) {
+                        this.newSearchStars[this.s_count] = {x:down, y:y};
+                }
+        }
+        else if(position == 'left') {
+                var left = y-1;
+                if(left < 0) return;
+                if(this.stars[x][y] == this.stars[x][left] && !this.checkRepeat(x, left)) {
+                        this.newSearchStars[this.s_count] = {x:x, y:left};
+                }
+        }
+        this.s_count++;
+}
+// 根据传递的x, y来检测是否存在在linkStars中 如果存在则返回 true
+app.checkRepeat = function(x, y) {
+        if(this.linkStars.length == 0) return false;
+        for(var i in this.linkStars) {
+                var star = this.linkStars[i];
+                if(parseInt(star.x) == parseInt(x) && parseInt(star.y) == parseInt(y)) return true;
+        }
+        return false;
+}
+// 从新构造“星星”数组
+// stars、newStars必须初始化完成
+// linkStars必须>=2个星星
+app.makeStars = function() {
+        if(this.stars.length==0 || this.newStars.length==0 || this.linkStars.length==0 || this.linkStars.length<2) return false;
+        // -== setp-1 ==-
+        /*
+                在相连数组中查找当前星星是否是相连的
+                如果是相连的星星 则在newStars中把该星星以上的星星的值都赋值给x+1的星星
+                然后在newStars中把最上面的一个元素 即[0][y]的元素值设为-1;
+        */
+        var clx_count = this.initColsArray(0);
+        for(var x in this.stars) {
+                x = parseInt(x);
+                for(var y in this.stars[x]) {
+                        y = parseInt(y);
+                        if(this.stars[x][y] != -1 && this.checkRepeat(x,y)) {
+                                for(var n_x = x-1; n_x >= 0; n_x--) {
+                                        this.newStars[n_x+1][y] = this.newStars[n_x][y];
+                                }
+                                this.newStars[0][y] = -1;
+                                this.colsLink[y].num += 1;
+                                if(this.colsLink[y].max < x) {
+                                        this.colsLink[y].max = x;
+                                        if((x+1 <= this.stars.length-1 && !this.checkRepeat(x+1,y)) || (x == this.stars.length-1 && this.checkRepeat(x,y))) {
+                                                this.colsLink[y].x[clx_count[y]] = x;
+                                                clx_count[y]++;
+                                        }
+                                        else if(x+1 <= this.stars.length-1 && this.checkRepeat(x+1,y)) {
+                                                this.colsLink[y].count[clx_count[y]] += 1;
+                                        }
+                                }
+                                this.colsNoneLenth[y] += 1;
+                        }
+                }
+        }
+        // -== setp-2 ==-
+        // 主要是为生成左移动画统计数据
+        this.noLeftChangeStars = left2Array(this.newStars);
+        var ld_count = 0;
+        for(var y = 0; y <= this.star.colsNum-1; y++) {
+                y = parseInt(y);
+                // if(this.star.colsNum - (y+1) < this.colsNoneNum) continue;
+                // 判断当前列是否全部被设置为-1
+                if(this.checkColsNone(y)) {
+                        if(this.leftData.min > y) {
+                                this.leftData.min = y;
+                        }
+                        if((y+1 <= this.star.colsNum-1 && !this.checkColsNone(y+1)) || (y == this.star.colsNum-1)) {
+                                this.leftData.y[ld_count] = y;
+                                ld_count++;
+                        }
+                        else if(y+1 <= this.star.colsNum-1 && this.checkColsNone(y+1)) {
+                                this.leftData.count[ld_count] += 1;
+                        }
+                        this.leftData.num += 1;
+                        // this.colsNoneNum += 1;
+                }
+        }
+        // -== setp-3 ==-
+        // 左移数据 并从新构造新数组
+        if(this.leftData.min > -1) {
+                var check = this.leftData.min;
+                for(var y = 0; y < this.star.colsNum; y++) {
+                        if(this.checkNewColsNone(check)) {
+                                for(var n_x = 0; n_x <= this.star.rowNum-1; n_x++) {
+                                        for(var n_y = check+1; n_y < this.star.colsNum; n_y++) {
+                                                this.newStars[n_x][n_y-1] = this.newStars[n_x][n_y];
+                                        }
+                                        this.newStars[n_x][this.star.colsNum-1] = -1;
+                                }
+                        }
+                        else {
+                                check += 1;
+                        }
+                }
+        }
+        // 把新构造的数组 再赋值给星星数组
+        this.stars = left2Array(this.newStars);
+}
+// 检测当前列是否全部消空 如果消空返回true
+// 数组未被左移破坏，只被下移修改过
+app.checkColsNone = function(y) {
+        var count = 0;
+        for(var x = 0; x < this.star.rowNum; x++) {
+                if(this.noLeftChangeStars[x][y] == Number(-1)) count++;
+        }
+        if(count == this.star.rowNum) return true;
+        return false;
+}
+// 检测当前列是否全部消空 如果消空返回true
+// 数组为每次下移和左移之后新生成的数组
+app.checkNewColsNone = function(y) {
+        var count = 0;
+        for(var x = 0; x < this.star.rowNum; x++) {
+                if(this.newStars[x][y] == Number(-1)) count++;
+        }
+        if(count == this.star.rowNum) return true;
+        return false;
+}
+app.draw = function() {
+        var starsDiv = '';
+        for(var x in this.stars) {
+                x = parseInt(x);
+                for(var y in this.stars[x]) {
+                        y = parseInt(y);
+                        var star = this.stars[x][y];
+                        if(star == -1) {
+                                continue;
+                        }
+                        var left = y*this.star.width+y*5;
+                        var top = x*this.star.height+x*5;
+                        var index = x*this.star.colsNum + y;
+                        starsDiv += '<div class="star id_'+index+'" style="left:'+left+'px; top:'+top+'px; width:'+this.star.width+'px;height:'+this.star.height+'px;" ondblclick="app.touch('+x+','+y+');" onmousedown="app.click('+x+','+y+');" onmouseup="app.mouseup();"><img src="http://sandbox.runjs.cn/uploads/rs/437/doeiphrq/star_'+star+'.png" width="'+this.star.width+'" height="'+this.star.height+'"/></div>';
+                }
+        }
+        $('#star_box').html(starsDiv);
+}
+app.initColsArray = function(val) {
+        var array = [];
+        if(val == 'undefined') val = 0;
+        for(var i = 0; i < this.star.colsNum; i++) {
+                array[i] = val;
+        }
+        return array;
+}
+app.initRowArray = function(val) {
+        var array = [];
+        if(val == 'undefined') val = 0;
+        for(var i = 0; i < this.star.rowNum; i++) {
+                array[i] = val;
+        }
+        return array;
+}
+app.write = function() {
+        var html = '';
+        for(var i in this.stars) {
+                var line = this.stars[i];
+                for(var j in line) {
+                        var star = line[j];
+                        var color = 'red';
+                        if(star == -1) {
+                                color = 'blue';
+                        }
+                        html += '<font color="'+color+'">'+star+'</font><font color="#999">('+i+','+j+')</font>    ';
+                }
+                html += '<br/><br/>';
+        }
+        html += '<p>--===================================================--<p>';
+        $('#show').append(html);
+}
+function left2Array(array) {
+        if(array.length < 0) return array;
+        var newArray = [];
+        for(var i in array) {
+                newArray[i] = [];
+                for(var j in array[i]) {
+                        newArray[i][j] = array[i][j];
+                }
+        }
+        return newArray;
+}
+</script>
+</head>
+<body>
+        <div id="box">
+                <div id="star_box">
+                </div>
+        </div>
+        <div id="show" style="padding-top:600px;"></div>
+<!--         X:<input type="text" id="x" value=""/>
+        Y:<input type="text" id="y" value=""/>
+        <input type="button" value="点击" onclick="app.touch($('#x').val(), $('#y').val());"/>
+        <br/>
+        <br/> -->
+</body>
+</html>

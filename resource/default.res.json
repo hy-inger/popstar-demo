@@ -1,0 +1,18 @@
+{
+	"groups":[
+	{
+		"keys":"bgImage,star_1,star_2,star_3,star_4,star_5,clock,bar_1,bar_2",
+		"name":"preload"
+	}],
+	"resources":[
+		{"name":"bgImage","type":"image","url":"assets/bg.jpg"},
+		{"name":"star_1","type":"image","url":"assets/star_1.png"},
+		{"name":"star_2","type":"image","url":"assets/star_2.png"},
+		{"name":"star_3","type":"image","url":"assets/star_3.png"},
+		{"name":"star_4","type":"image","url":"assets/star_4.png"},
+		{"name":"star_5","type":"image","url":"assets/star_5.png"},
+		{"name":"clock","type":"image","url":"assets/clock.png"},
+		{"name":"bar_1","type":"image","url":"assets/bar_1.png"},
+		{"name":"bar_2","type":"image","url":"assets/bar_2.png"}
+	]
+}
