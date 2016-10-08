@@ -1,7 +1,7 @@
 {
 	"groups":[
 	{
-		"keys":"bgImage,star_1,star_2,star_3,star_4,star_5,clock,bar_1,bar_2",
+		"keys":"bgImage,star_1,star_2,star_3,star_4,star_5,clock,bar_1,bar_2,fireworks_json",
 		"name":"preload"
 	}],
 	"resources":[
@@ -13,6 +13,7 @@
 		{"name":"star_5","type":"image","url":"assets/star_5.png"},
 		{"name":"clock","type":"image","url":"assets/clock.png"},
 		{"name":"bar_1","type":"image","url":"assets/bar_1.png"},
-		{"name":"bar_2","type":"image","url":"assets/bar_2.png"}
+		{"name":"bar_2","type":"image","url":"assets/bar_2.png"},
+		{"name":"fireworks_json","type":"json","url":"assets/fire.json"}
 	]
 }

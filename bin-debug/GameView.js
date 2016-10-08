@@ -31,6 +31,8 @@ var GameView = (function (_super) {
         this.gameOverText.touchEnabled = true;
         this.gameOverText.addEventListener(egret.TouchEvent.TOUCH_TAP, this.newGame, this);
         this.addChild(this.gameOverText);
+        // 获取粒子配置
+        this.elate_config = RES.getRes('fireworks_json');
         //创建头部
         this.clock = new egret.Bitmap();
         this.clock.texture = RES.getRes("clock");
@@ -111,12 +113,14 @@ var GameView = (function (_super) {
         this.star_array = new Array();
         var temp_star;
         var num;
+        var texture;
         for (var i = 0; i < this.colNum; i++) {
             this.star_array[i] = new Array();
             for (var j = 0; j < this.rowNum; j++) {
                 num = Math.floor(Math.random() * this.starRES_array.length);
+                texture = this.starRES_array[num];
                 temp_star = new egret.Bitmap(this.starRES_array[num]);
-                this.star_array[i][j] = { "star": temp_star, "num": num, "colNum": i, "rowNum": j };
+                this.star_array[i][j] = { "star": temp_star, "texture": texture, "num": num, "colNum": i, "rowNum": j };
                 //temp_star.anchorX = 0.5;
                 //temp_star.anchorY = 0.5;
                 temp_star.x = j * this.spaceX; //+ temp_star.width / 2;
@@ -138,6 +142,9 @@ var GameView = (function (_super) {
                     if (this.star_array[i][j].star == e.target) {
                         this.cColNum = i;
                         this.cRowNum = j;
+                        this.stageX = e.stageX;
+                        this.stageY = e.stageY;
+                        console.log(e.localX, e.localY);
                         break;
                     }
                 }
@@ -276,6 +283,19 @@ var GameView = (function (_super) {
         }
     };
     //========================================================================================
+    // 星星溅落效果
+    p.Particle = function (star, texture) {
+        if (this.system) {
+            this.system.stop();
+            this.removeChild(this.system);
+        }
+        var targetPoint = star.localToGlobal(star.x, star.y);
+        console.log(targetPoint, this.stageX, this.stageY);
+        this.elate_config.emitter = { x: targetPoint.x, y: targetPoint.y };
+        this.system = new particle.GravityParticleSystem(texture, this.elate_config);
+        this.addChild(this.system);
+        this.system.start(700);
+    };
     //重置色块位置
     //消失色块
     p.resetStar = function () {
@@ -287,15 +307,20 @@ var GameView = (function (_super) {
         var i;
         var j;
         var count = 0;
+        var texture;
+        //var star;
         for (i = 0; i < this.colNum; i++) {
             for (j = 0; j < this.rowNum; j++) {
                 if (this.same_array[i]) {
                     if (this.same_array[i][j]) {
+                        //star =  this.same_array[i][j];
                         temp_star = this.same_array[i][j].star;
+                        texture = this.same_array[i][j].texture;
                         temp_star.touchEnabled = false;
                         temp_star.removeEventListener(egret.TouchEvent.TOUCH_TAP, this.tapHandle, this);
                         this.star_array[i][j] = undefined;
-                        egret.Tween.get(temp_star).to({ scaleX: 0.1, scaleY: 0.1, alpha: 0 }, 200, egret.Ease.circOut).call(this.funcComplete, this, [temp_star]);
+                        this.Particle(temp_star, texture);
+                        egret.Tween.get(temp_star).to({ scaleX: 0.1, scaleY: 0.1, alpha: 0 }, 500, egret.Ease.circOut).call(this.funcComplete, this, [temp_star]);
                         count++;
                     }
                 }
@@ -306,6 +331,7 @@ var GameView = (function (_super) {
     };
     p.funcComplete = function (_obj) {
         //消失后移除
+        //this.Particle(_obj.texture);
         this.gameBody.removeChild(_obj);
     };
     //重排色块
@@ -374,18 +400,32 @@ var GameView = (function (_super) {
         var temp_star;
         var i;
         var j;
+        var texture;
+        var timer;
+        var self = this;
         this.count = 0;
+        function test(temp_star, texture, self) {
+            function run() {
+                var timer = setTimeout(function () {
+                    clearTimeout(timer);
+                    self.Particle(temp_star, texture);
+                }, self.count * 100 + 500);
+            }
+            return run();
+        }
         for (i = 0; i < this.colNum; i++) {
             for (j = 0; j < this.rowNum; j++) {
                 if (this.star_array[i][j]) {
                     temp_star = this.star_array[i][j].star;
-                    egret.Tween.get(temp_star).wait(this.count * 100 + 500).to({ scaleX: 0.1, scaleY: 0.1, alpha: 0 }, 200, egret.Ease.circOut).call(this.funcComplete, this, [temp_star]);
+                    texture = this.star_array[i][j].texture;
+                    test(temp_star, texture, self);
+                    egret.Tween.get(temp_star).wait(this.count * 100 + 500).to({ scaleX: 0.1, scaleY: 0.1, alpha: 0 }, 500, egret.Ease.circOut).call(this.funcComplete, this, [temp_star]);
                     temp_star.touchEnabled = false;
                     temp_star.removeEventListener(egret.TouchEvent.TOUCH_TAP, this.tapHandle, this);
                     this.star_array[i][j] = undefined;
                     this.count++;
-                    if (this.count > 7) {
-                        this.count = 7;
+                    if (this.count > 20) {
+                        this.count = 20;
                     }
                 }
             }

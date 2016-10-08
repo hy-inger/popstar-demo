@@ -20,8 +20,12 @@
     },
     {
       "name": "res"
-    },{
+    },
+    {
       "name": "gui"
+    },{
+      "name":"particle",
+      "path":"./libsrc/particle"
     }
   ]
 }
